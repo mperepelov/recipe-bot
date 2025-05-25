@@ -135,6 +135,16 @@ class RecipeHandlers:
             await self._handle_view_recipe(query, user_id, data)
         elif data.startswith("edit_"):
             await self._handle_edit_recipe(query, context, data)
+        elif data.startswith("ai_verify_"):
+            await self.verify_recipe(update, context)
+        elif data.startswith("manual_edit_"):
+            recipe_id = data.replace("manual_edit_", "")
+            context.user_data['editing_recipe_id'] = recipe_id
+            await query.edit_message_text(
+                "✏️ Please send the updated recipe content.\n"
+                "Send /cancel to cancel editing."
+            )
+            return ConversationStates.WAITING_FOR_RECIPE_UPDATE
         elif data.startswith("delete_"):
             await self._handle_delete_recipe(query, user_id, data)
         elif data == "list":
@@ -161,15 +171,32 @@ class RecipeHandlers:
                 reply_markup=reply_markup
             )
     
-    async def _handle_edit_recipe(self, query, context: ContextTypes.DEFAULT_TYPE, data: str) -> None:
+    async def _handle_edit_recipe(self, query, context: ContextTypes.DEFAULT_TYPE, data: str) -> int:
         """Handle editing a recipe"""
         recipe_id = data.replace("edit_", "")
         context.user_data['editing_recipe_id'] = recipe_id
         
+        # Get existing recipe to store in context
+        recipe = await self.storage.get_recipe(query.from_user.id, recipe_id)
+        if recipe:
+            context.user_data['original_recipe'] = recipe.content
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✏️ Manual Edit", callback_data=f"manual_edit_{recipe_id}"),
+                InlineKeyboardButton("🤖 AI Verify", callback_data=f"ai_verify_{recipe_id}")
+            ],
+            [InlineKeyboardButton("« Back", callback_data=f"view_{recipe_id}")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await query.edit_message_text(
-            "✏️ Please send the updated recipe content.\n"
-            "Send /cancel to cancel editing."
+            "How would you like to edit this recipe?\n\n"
+            "✏️ Manual Edit - Write your own changes\n"
+            "🤖 AI Verify - Let AI check and improve the recipe",
+            reply_markup=reply_markup
         )
+        return ConversationStates.CHOOSING_EDIT_TYPE
     
     async def _handle_delete_recipe(self, query, user_id: int, data: str) -> None:
         """Handle deleting a recipe"""
@@ -209,3 +236,54 @@ class RecipeHandlers:
             "🤖 = AI Generated | 👤 = Your Recipe",
             reply_markup=reply_markup
         )
+    
+    async def verify_recipe(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Verify and improve recipe using LLM"""
+        if 'editing_recipe_id' not in context.user_data:
+            await update.message.reply_text("❌ No recipe selected for verification.")
+            return ConversationHandler.END
+            
+        recipe_id = context.user_data['editing_recipe_id']
+        user_id = update.effective_user.id
+        
+        # Get existing recipe
+        recipe = await self.storage.get_recipe(user_id, recipe_id)
+        if not recipe:
+            await update.message.reply_text("❌ Recipe not found.")
+            return ConversationHandler.END
+        
+        await update.callback_query.edit_message_text("🤖 Verifying and improving recipe... This may take a moment.")
+        
+        try:
+            # Update recipe using LLM
+            improved_content = await self.llm.update_recipe(recipe.content)
+            
+            # Update recipe object
+            recipe.content = improved_content
+            recipe.is_ai_generated = True
+            
+            # Save updated recipe
+            await self.storage.save_recipe(user_id, recipe)
+            
+            # Create keyboard for after verification
+            keyboard = [
+                [InlineKeyboardButton("« Back to Recipe", callback_data=f"view_{recipe_id}")],
+                [InlineKeyboardButton("« Back to List", callback_data="list")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await update.callback_query.edit_message_text(
+                f"✅ Recipe '{recipe.name}' has been verified and improved!\n\n"
+                f"{improved_content}",
+                reply_markup=reply_markup
+            )
+            
+        except Exception as e:
+            logger.error(f"Error during recipe verification: {e}")
+            await update.callback_query.edit_message_text(
+                "❌ Sorry, there was an error verifying the recipe. Please try again later."
+            )
+        
+        # Clear user data
+        context.user_data.clear()
+        return ConversationHandler.END
