@@ -1,6 +1,6 @@
 # Recipe Telegram Bot 🍳
 
-A Telegram bot that helps you manage recipes and generate new ones using AI (OpenAI GPT-4 Mini).
+A modular, production-ready Telegram bot that helps you manage recipes and generate new ones using AI (OpenAI GPT-4 Mini).
 
 ## Features
 
@@ -8,32 +8,34 @@ A Telegram bot that helps you manage recipes and generate new ones using AI (Ope
 - 📝 Save your own recipes
 - 📚 View, edit, and delete saved recipes
 - 📏 All measurements in metric units
-- 🏗️ Clean OOP architecture
-- 💾 Persistent storage (JSON-based)
-
-## Prerequisites
-
-1. **Telegram Bot Token**: Create a bot via [@BotFather](https://t.me/botfather)
-2. **OpenAI API Key**: Get from [OpenAI Platform](https://platform.openai.com/)
+- 🏗️ Clean modular architecture
+- 💾 Persistent storage
+- 🚀 Production-ready with multiple deployment options
 
 ## Project Structure
 
 ```
 recipe-telegram-bot/
-├── main.py              # Main bot application
-├── requirements.txt     # Python dependencies
-├── .env.example        # Environment variables template
-├── Dockerfile          # Docker configuration
-├── docker-compose.yml  # Docker Compose setup
-├── vercel.json         # Vercel deployment config
-├── api/
-│   └── webhook.py      # Webhook handler for serverless
-└── recipe_data/        # Local storage directory
+├── src/
+│   ├── bot.py              # Main bot class
+│   ├── config.py           # Configuration management
+│   ├── handlers/           # Command and callback handlers
+│   ├── models/             # Data models
+│   ├── storage/            # Storage implementations
+│   └── llm/                # LLM implementations
+├── lambda_function.py      # AWS Lambda handler
+├── webhook_server.py       # Webhook server for cloud platforms
+├── main.py                 # Local development entry point
+└── deployment configs...   # Various deployment configurations
 ```
 
-## Installation & Setup
+## Prerequisites
 
-### Local Development
+1. **Telegram Bot Token**: Create a bot via [@BotFather](https://t.me/botfather)
+2. **OpenAI API Key**: Get from [OpenAI Platform](https://platform.openai.com/)
+3. **Python 3.11+**
+
+## Installation
 
 1. Clone the repository:
 ```bash
@@ -52,59 +54,22 @@ cp .env.example .env
 # Edit .env and add your tokens
 ```
 
-4. Run the bot:
+## Local Development
+
+Run the bot locally:
 ```bash
 python main.py
 ```
 
-### Docker Deployment
+## Deployment
 
-```bash
-docker-compose up -d
-```
+The bot can be deployed on multiple platforms. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions:
 
-## Free Deployment Options
-
-### 1. Replit
-
-1. Create new Python repl
-2. Upload all files
-3. Add environment variables in Secrets
-4. Run `main.py`
-5. Use UptimeRobot to keep it alive
-
-### 2. Vercel (Serverless)
-
-1. Fork this repository
-2. Connect to Vercel
-3. Add environment variables
-4. Deploy
-5. Set webhook URL in Telegram:
-```bash
-curl -F "url=https://your-app.vercel.app/api/webhook" \
-     https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook
-```
-
-### 3. Railway
-
-1. Connect GitHub repository
-2. Add environment variables
-3. Deploy (automatic)
-
-### 4. Render
-
-1. Create new Web Service
-2. Connect GitHub repository
-3. Set build command: `pip install -r requirements.txt`
-4. Set start command: `python main.py`
-5. Add environment variables
-
-### 5. Fly.io
-
-1. Install flyctl
-2. Run `fly launch`
-3. Set environment variables: `fly secrets set TELEGRAM_BOT_TOKEN=... OPENAI_API_KEY=...`
-4. Deploy: `fly deploy`
+- **AWS Lambda** (Free tier, serverless) ⭐ Recommended
+- **Railway** (Simple, $5 free credit)
+- **Fly.io** (Generous free tier)
+- **Render** (Free with limitations)
+- **Google Cloud Run** (Pay-per-use)
 
 ## Bot Commands
 
@@ -116,51 +81,76 @@ curl -F "url=https://your-app.vercel.app/api/webhook" \
 
 ## Architecture
 
-The bot follows OOP principles with clear separation of concerns:
+The bot follows a modular architecture with clear separation of concerns:
 
-- **Recipe**: Data class for recipe objects
-- **StorageInterface**: Abstract interface for storage implementations
-- **JSONFileStorage**: JSON-based storage implementation
-- **LLMInterface**: Abstract interface for LLM providers
-- **OpenAILLM**: OpenAI GPT implementation
-- **RecipeBot**: Main bot logic
+### Core Components
 
-## Storage
+- **Bot Class** (`src/bot.py`): Main orchestrator
+- **Handlers** (`src/handlers/`): Process user commands and callbacks
+- **Storage** (`src/storage/`): Abstract storage interface with JSON implementation
+- **LLM** (`src/llm/`): Abstract LLM interface with OpenAI implementation
+- **Models** (`src/models/`): Data models (Recipe)
+- **Config** (`src/config.py`): Configuration management
 
-Recipes are stored in JSON files:
-- Local: `recipe_data/user_{user_id}.json`
-- Serverless: Uses `/tmp` directory
+### Storage
 
-## Customization
+- Default: JSON file storage
+- Can be extended to use databases (PostgreSQL, MongoDB, etc.)
+- Serverless deployments should use cloud storage (DynamoDB, Firestore)
 
-### Adding New LLM Providers
+### Adding New Features
 
-Create a new class implementing `LLMInterface`:
+1. **New LLM Provider:**
+   ```python
+   class YourLLM(LLMInterface):
+       async def generate_recipe(self, ingredients: List[str]) -> str:
+           # Implementation
+   ```
 
-```python
-class YourLLM(LLMInterface):
-    async def generate_recipe(self, ingredients: List[str]) -> str:
-        # Your implementation
-        pass
-```
-
-### Adding Database Storage
-
-Create a new class implementing `StorageInterface`:
-
-```python
-class DatabaseStorage(StorageInterface):
-    async def save_recipe(self, user_id: int, recipe: Recipe) -> None:
-        # Your implementation
-        pass
-    # ... other methods
-```
+2. **New Storage Backend:**
+   ```python
+   class DatabaseStorage(StorageInterface):
+       # Implement all abstract methods
+   ```
 
 ## Environment Variables
 
-- `TELEGRAM_BOT_TOKEN`: Your Telegram bot token
-- `OPENAI_API_KEY`: Your OpenAI API key
+- `TELEGRAM_BOT_TOKEN` - Your Telegram bot token (required)
+- `OPENAI_API_KEY` - Your OpenAI API key (required)
+- `WEBHOOK_URL` - Webhook URL for production (optional)
+- `STORAGE_PATH` - Path for storing recipes (default: recipe_data)
+- `OPENAI_MODEL` - OpenAI model to use (default: gpt-4o-mini)
+- `LOG_LEVEL` - Logging level (default: INFO)
+- `ENVIRONMENT` - Environment (development/production)
+
+## Development
+
+### Code Structure
+
+- Each component has its own module
+- Interfaces define contracts
+- Easy to extend and test
+- Type hints throughout
+
+### Testing
+
+```bash
+# Run tests (add your test files)
+pytest tests/
+```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
 ## License
 
 MIT License
+
+## Support
+
+For issues, questions, or contributions, please open an issue on GitHub.

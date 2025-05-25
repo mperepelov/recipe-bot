@@ -1,4 +1,4 @@
 python-telegram-bot==21.0.1
-openai==1.54.3
+requests==2.31.0
+aiohttp==3.9.1
 python-dotenv==1.0.0
-flask==3.0.0
