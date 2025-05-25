@@ -6,6 +6,14 @@ from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 from abc import ABC, abstractmethod
 
+# Try to load from .env file if it exists (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available in Replit by default
+    pass
+
 import openai
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -27,6 +35,23 @@ logger = logging.getLogger(__name__)
 
 # Conversation states
 WAITING_FOR_INGREDIENTS, WAITING_FOR_RECIPE_NAME, WAITING_FOR_RECIPE_CONTENT, EDITING_RECIPE = range(4)
+
+# Keep Replit alive
+from flask import Flask
+from threading import Thread
+
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is running! 🤖"
+
+def run():
+    app.run(host='0.0.0.0', port=8080)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 
 @dataclass
 class Recipe:
@@ -409,13 +434,24 @@ All measurements are in metric units! 📏"""
 
 def main():
     """Start the bot"""
-    # Load environment variables
+    # Get environment variables (Replit Secrets or .env)
     BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     
-    if not BOT_TOKEN or not OPENAI_API_KEY:
-        logger.error("Missing required environment variables!")
+    if not BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN not found in environment variables!")
+        logger.info("Please add TELEGRAM_BOT_TOKEN to Replit Secrets")
         return
+    
+    if not OPENAI_API_KEY:
+        logger.error("OPENAI_API_KEY not found in environment variables!")
+        logger.info("Please add OPENAI_API_KEY to Replit Secrets")
+        return
+    
+    logger.info("Starting Recipe Bot...")
+    
+    # Keep Replit alive
+    keep_alive()
     
     # Initialize components
     storage = JSONFileStorage()
@@ -458,6 +494,8 @@ def main():
     application.add_handler(generate_conv_handler)
     application.add_handler(add_conv_handler)
     application.add_handler(CallbackQueryHandler(bot.handle_callback))
+    
+    logger.info("Bot is running! 🤖")
     
     # Start the bot
     application.run_polling(allowed_updates=Update.ALL_TYPES)
