@@ -22,8 +22,14 @@ class StorageInterface(ABC):
         pass
     
     @abstractmethod
-    async def update_recipe(self, user_id: int, recipe: Recipe) -> None:
-        """Update an existing recipe"""
+    async def update_recipe(self, user_id: int, recipe_id: str, recipe: Recipe) -> None:
+        """Update an existing recipe
+        
+        Args:
+            user_id (int): The ID of the user who owns the recipe
+            recipe_id (str): The ID of the recipe to update
+            recipe (Recipe): The updated recipe object
+        """
         pass
     
     @abstractmethod

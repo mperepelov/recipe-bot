@@ -240,16 +240,16 @@ class RecipeHandlers:
     async def verify_recipe(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Verify and improve recipe using LLM"""
         if 'editing_recipe_id' not in context.user_data:
-            await update.message.reply_text("❌ No recipe selected for verification.")
+            await update.callback_query.edit_message_text("❌ No recipe selected for verification.")
             return ConversationHandler.END
             
         recipe_id = context.user_data['editing_recipe_id']
-        user_id = update.effective_user.id
+        user_id = update.callback_query.from_user.id
         
         # Get existing recipe
         recipe = await self.storage.get_recipe(user_id, recipe_id)
         if not recipe:
-            await update.message.reply_text("❌ Recipe not found.")
+            await update.callback_query.edit_message_text("❌ Recipe not found.")
             return ConversationHandler.END
         
         await update.callback_query.edit_message_text("🤖 Verifying and improving recipe... This may take a moment.")
@@ -258,12 +258,12 @@ class RecipeHandlers:
             # Update recipe using LLM
             improved_content = await self.llm.update_recipe(recipe.content)
             
-            # Update recipe object
-            recipe.content = improved_content
+            # Update recipe content (this will also update the timestamp)
+            recipe.update_content(improved_content)
             recipe.is_ai_generated = True
             
             # Save updated recipe
-            await self.storage.save_recipe(user_id, recipe)
+            await self.storage.update_recipe(user_id, recipe_id, recipe)
             
             # Create keyboard for after verification
             keyboard = [
@@ -283,7 +283,7 @@ class RecipeHandlers:
             await update.callback_query.edit_message_text(
                 "❌ Sorry, there was an error verifying the recipe. Please try again later."
             )
-        
+    
         # Clear user data
         context.user_data.clear()
         return ConversationHandler.END
