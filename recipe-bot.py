@@ -161,7 +161,13 @@ class OpenAILLM(LLMInterface):
     """OpenAI GPT implementation"""
     
     def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
-        self.client = openai.OpenAI(api_key=api_key)
+        try:
+            # Try the newer OpenAI client initialization
+            self.client = openai.OpenAI(api_key=api_key)
+        except Exception as e:
+            # Fallback for compatibility issues
+            openai.api_key = api_key
+            self.client = None
         self.model = model
     
     async def generate_recipe(self, ingredients: List[str]) -> str:
@@ -184,16 +190,30 @@ Format the recipe clearly with sections for:
 - Optional: Tips or variations"""
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "You are a helpful cooking assistant that only provides recipes and cooking-related advice. Always use metric measurements."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=1000
-            )
-            return response.choices[0].message.content
+            if self.client:
+                # Use the new client interface
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful cooking assistant that only provides recipes and cooking-related advice. Always use metric measurements."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                return response.choices[0].message.content
+            else:
+                # Fallback to older API style
+                response = openai.ChatCompletion.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful cooking assistant that only provides recipes and cooking-related advice. Always use metric measurements."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+                return response.choices[0].message.content
         except Exception as e:
             logger.error(f"Error generating recipe: {e}")
             return "Sorry, I couldn't generate a recipe at this time. Please try again later."
