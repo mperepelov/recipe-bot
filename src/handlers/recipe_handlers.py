@@ -242,48 +242,48 @@ class RecipeHandlers:
         if 'editing_recipe_id' not in context.user_data:
             await update.callback_query.edit_message_text("❌ No recipe selected for verification.")
             return ConversationHandler.END
-            
+        
         recipe_id = context.user_data['editing_recipe_id']
         user_id = update.callback_query.from_user.id
-        
+    
         # Get existing recipe
         recipe = await self.storage.get_recipe(user_id, recipe_id)
         if not recipe:
             await update.callback_query.edit_message_text("❌ Recipe not found.")
             return ConversationHandler.END
-        
+    
         await update.callback_query.edit_message_text("🤖 Verifying and improving recipe... This may take a moment.")
-        
+    
         try:
             # Update recipe using LLM
             improved_content = await self.llm.update_recipe(recipe.content)
-            
+        
             # Update recipe content (this will also update the timestamp)
             recipe.update_content(improved_content)
             recipe.is_ai_generated = True
-            
-            # Save updated recipe
-            await self.storage.update_recipe(user_id, recipe_id, recipe)
-            
+        
+            # Save updated recipe - FIXED: removed recipe_id parameter
+            await self.storage.update_recipe(user_id, recipe)
+        
             # Create keyboard for after verification
             keyboard = [
                 [InlineKeyboardButton("« Back to Recipe", callback_data=f"view_{recipe_id}")],
                 [InlineKeyboardButton("« Back to List", callback_data="list")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
+        
             await update.callback_query.edit_message_text(
                 f"✅ Recipe '{recipe.name}' has been verified and improved!\n\n"
                 f"{improved_content}",
                 reply_markup=reply_markup
             )
-            
+        
         except Exception as e:
             logger.error(f"Error during recipe verification: {e}")
             await update.callback_query.edit_message_text(
                 "❌ Sorry, there was an error verifying the recipe. Please try again later."
             )
-    
+
         # Clear user data
         context.user_data.clear()
         return ConversationHandler.END
