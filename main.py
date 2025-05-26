@@ -13,15 +13,23 @@ logger = logging.getLogger(__name__)
 
 async def main():
     """Run the bot"""
+    bot = None
     try:
         # Load configuration
         config = Config.from_env()
         
-        # Create and start bot
+        # Create bot
         bot = RecipeBot(config)
+        
+        # Initialize storage
+        await bot.initialize_storage()
+        
+        # Setup application
         bot.setup_application()
         
         logger.info("Starting Recipe Bot...")
+        logger.info(f"Storage type: {config.storage_type}")
+        logger.info(f"Storage path: {config.storage_path}")
         
         # Start polling
         await bot.start_polling()
@@ -34,7 +42,7 @@ async def main():
     except Exception as e:
         logger.error(f"Error: {e}")
     finally:
-        if 'bot' in locals():
+        if bot:
             await bot.stop()
 
 if __name__ == "__main__":

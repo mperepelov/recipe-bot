@@ -11,7 +11,9 @@ from telegram.ext import (
 from .config import Config, ConversationStates
 from .handlers.base import start_command, help_command, cancel_command
 from .handlers.recipe_handlers import RecipeHandlers
-from .storage.json_storage import JSONFileStorage
+from .storage.persistent_json_storage import PersistentJSONStorage
+from .storage.persistent_json_storage import PersistentJSONStorage
+from .storage.postgres_storage import PostgreSQLStorage
 from .llm.openai_llm import OpenAILLM
 
 logger = logging.getLogger(__name__)
@@ -21,10 +23,23 @@ class RecipeBot:
     
     def __init__(self, config: Config):
         self.config = config
-        self.storage = JSONFileStorage(config.storage_path)
+        self.storage = None
         self.llm = OpenAILLM(config.openai_api_key, config.openai_model)
-        self.recipe_handlers = RecipeHandlers(self.storage, self.llm)
+        self.recipe_handlers = None
         self.application = None
+    
+    async def initialize_storage(self):
+        """Initialize storage based on configuration"""
+        if self.config.storage_type == "postgres" and self.config.database_url:
+            logger.info("Using PostgreSQL storage")
+            self.storage = PostgreSQLStorage(self.config.database_url)
+            await self.storage.initialize()
+        else:
+            logger.info("Using persistent JSON storage")
+            self.storage = PersistentJSONStorage(self.config.storage_path)
+            await self.storage.initialize()
+        
+        self.recipe_handlers = RecipeHandlers(self.storage, self.llm)
     
     def setup_application(self) -> Application:
         """Set up the bot application with all handlers"""
@@ -68,6 +83,8 @@ class RecipeBot:
     
     async def start_polling(self):
         """Start the bot in polling mode (for local development)"""
+        await self.initialize_storage()
+        
         if not self.application:
             self.setup_application()
         
@@ -82,6 +99,9 @@ class RecipeBot:
             await self.application.updater.stop()
             await self.application.stop()
             await self.application.shutdown()
+        
+        if self.storage:
+            await self.storage.close()
     
     async def setup_webhook(self, webhook_url: str):
         """Set up webhook for production deployment"""
