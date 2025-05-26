@@ -57,6 +57,50 @@ class OpenAILLM(LLMInterface):
         except Exception as e:
             logger.error(f"Error generating recipe: {e}")
             return "Sorry, I couldn't generate a recipe at this time. Please try again later."
+        
+    async def update_recipe(self, recipe) -> str:
+        """Update already existent recipe"""
+        prompt = self._create_prompt_for_existent_recipe(recipe)
+        
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system", 
+                    "content": "You are a helpful cooking assistant that only provides recipes and cooking-related advice. Always use metric measurements."
+                },
+                {
+                    "role": "user", 
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 1000
+        }
+        
+        try:
+            response = requests.post(self.api_url, headers=headers, json=data)
+            response.raise_for_status()
+            result = response.json()
+            return result['choices'][0]['message']['content']
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                logger.error("Invalid OpenAI API key")
+                return "Error: Invalid OpenAI API key. Please check your API key."
+            elif e.response.status_code == 429:
+                logger.error("OpenAI rate limit exceeded")
+                return "Error: Rate limit exceeded. Please try again in a few moments."
+            else:
+                logger.error(f"HTTP error: {e}")
+                return f"Sorry, I couldn't generate a recipe. Error: {e.response.status_code}"
+        except Exception as e:
+            logger.error(f"Error generating recipe: {e}")
+            return "Sorry, I couldn't generate a recipe at this time. Please try again later."
     
     def _create_prompt(self, ingredients: List[str]) -> str:
         """Create the prompt for recipe generation"""
@@ -76,4 +120,16 @@ Format the recipe clearly with sections for:
 - Servings
 - Ingredients (with metric measurements)
 - Instructions (numbered steps)
-- Optional: Tips or variations"""
+- Optional: Tips or variations
+"""
+
+    def _create_prompt_for_existent_recipe(self, recipe) -> str:
+        """Create the prompt for recipe generation"""
+        return f"""You are a professional chef. Verify and update provided recipe {recipe}.
+
+IMPORTANT RULES:
+1. Improve markdown formatting
+2. Update only if necessary
+3. Make it more readable
+4. Remove unnecessary new lines
+"""

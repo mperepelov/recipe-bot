@@ -52,19 +52,26 @@ class JSONFileStorage(StorageInterface):
                 return recipe
         return None
     
-    async def update_recipe(self, user_id: int, recipe: Recipe) -> None:
+    async def update_recipe(self, user_id: int, recipe_id: str, recipe: Recipe) -> None:
         """Update an existing recipe"""
         recipes = await self.get_recipes(user_id)
+        updated = False
+        
         for i, r in enumerate(recipes):
-            if r.id == recipe.id:
+            if r.id == recipe_id:
                 recipes[i] = recipe
+                updated = True
                 break
+        
+        if not updated:
+            logger.warning(f"Recipe {recipe_id} not found for user {user_id}")
+            return
         
         file_path = self._get_user_file(user_id)
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump([r.to_dict() for r in recipes], f, ensure_ascii=False, indent=2)
         
-        logger.info(f"Updated recipe {recipe.id} for user {user_id}")
+        logger.info(f"Updated recipe {recipe_id} for user {user_id}")
     
     async def delete_recipe(self, user_id: int, recipe_id: str) -> None:
         """Delete a recipe"""
