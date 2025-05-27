@@ -200,7 +200,7 @@ All deployments need these environment variables:
 
 1. Use webhook mode instead of polling
 2. Implement caching for repeated requests
-3. Use smaller OpenAI models (gpt-4o-mini)
+3. Use smaller OpenAI models (gpt-4.1-mini)
 4. Set up billing alerts
 5. Monitor usage regularly
 

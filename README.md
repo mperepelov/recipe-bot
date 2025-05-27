@@ -119,7 +119,7 @@ The bot follows a modular architecture with clear separation of concerns:
 - `OPENAI_API_KEY` - Your OpenAI API key (required)
 - `WEBHOOK_URL` - Webhook URL for production (optional)
 - `STORAGE_PATH` - Path for storing recipes (default: recipe_data)
-- `OPENAI_MODEL` - OpenAI model to use (default: gpt-4o-mini)
+- `OPENAI_MODEL` - OpenAI model to use (default: gpt-4.1-mini)
 - `LOG_LEVEL` - Logging level (default: INFO)
 - `ENVIRONMENT` - Environment (development/production)
 

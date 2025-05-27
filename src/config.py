@@ -11,7 +11,7 @@ class Config:
     storage_path: str = "/data/recipes"  # Railway persistent volume path
     storage_type: str = "postgres"  # json, postgres
     database_url: Optional[str] = None
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-4.1-mini"
     log_level: str = "INFO"
     webhook_url: Optional[str] = None
     environment: str = "development"  # development, production
@@ -33,7 +33,7 @@ class Config:
             storage_path=os.getenv("STORAGE_PATH", "/data/recipes"),
             storage_type="postgres",
             database_url=os.getenv("DATABASE_URL"),
-            openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             webhook_url=os.getenv("WEBHOOK_URL"),
             environment=os.getenv("ENVIRONMENT", "development")

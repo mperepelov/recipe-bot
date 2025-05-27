@@ -7,6 +7,7 @@ import asyncpg
 from datetime import datetime
 from .interface import StorageInterface
 from ..models.recipe import Recipe
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,24 @@ class PostgreSQLStorage(StorageInterface):
         self.pool = None
     
     async def initialize(self):
-        """Initialize database connection and create tables"""
+        """Initialize database connection and create tables, with retry logic if DB is sleeping"""
+        max_retries = 5
+        delay = 5  # seconds
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                # Try a direct connection and simple query to wake up DB
+                conn = await asyncpg.connect(self.database_url)
+                await conn.execute("SELECT 1;")
+                await conn.close()
+                break  # Success, exit retry loop
+            except Exception as e:
+                attempt += 1
+                logger.warning(f"Database connection attempt {attempt} failed: {e}")
+                if attempt >= max_retries:
+                    logger.error(f"Failed to connect to database after {max_retries} attempts.")
+                    raise
+                await asyncio.sleep(delay)
         try:
             self.pool = await asyncpg.create_pool(self.database_url)
             await self._create_tables()

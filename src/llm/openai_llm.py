@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class OpenAILLM(LLMInterface):
     """OpenAI GPT implementation using requests"""
     
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
+    def __init__(self, api_key: str, model: str = "gpt-4.1-mini"):
         self.api_key = api_key
         self.model = model
         self.api_url = "https://api.openai.com/v1/chat/completions"
